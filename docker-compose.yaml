@@ -1,0 +1,155 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: spring-lab-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot
+    depends_on:
+      - bff
+      - keycloak
+    networks:
+      - spring-lab-net
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: spring-lab-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+
+      SPRING_DATA_REDIS_HOST: ${SPRING_REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${SPRING_REDIS_PORT}
+
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/certs
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - keycloak
+    networks:
+      - spring-lab-net
+
+  bff:
+    image: ${BFF_IMAGE}
+    container_name: spring-lab-bff
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8082
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
+      APP_BACKEND_URL: http://backend:8080
+
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: ${BFF_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
+    depends_on:
+      - backend
+      - keycloak
+    networks:
+      - spring-lab-net
+
+  postgres:
+    image: postgres:18
+    container_name: spring-lab-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - spring-lab-net
+
+  redis:
+    image: redis:7
+    container_name: spring-lab-redis
+    restart: unless-stopped
+    networks:
+      - spring-lab-net
+
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: spring-lab-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - spring-lab-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.3
+    container_name: keycloak
+    restart: unless-stopped
+    command: start
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: ${SPRING_KL_DATASOURCE_USERNAME}
+      KC_DB_PASSWORD: ${SPRING_KL_DATASOURCE_PASSWORD}
+
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: auth.spring-backend-lab.ru
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "true"
+    depends_on:
+      - keycloak-db
+    networks:
+      - spring-lab-net
+
+  keycloak-db:
+    image: postgres:18
+    container_name: keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${SPRING_KL_DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_KL_DATASOURCE_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql
+    networks:
+      - spring-lab-net
+
+volumes:
+  postgres_data:
+  kafka_data:
+  keycloak_db_data:
+
+networks:
+  spring-lab-net:
+    name: spring-lab-net
