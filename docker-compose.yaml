@@ -17,18 +17,23 @@ services:
       - spring-lab-net
 
   backend:
-    image: ${BACKEND_IMAGE}
+    image: spring-lab-backend:local
+    build:
+      context: ../spring-backend-lab
+      dockerfile: Dockerfile
     container_name: spring-lab-backend
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
 
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
 
-      SPRING_DATA_REDIS_HOST: ${SPRING_REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${SPRING_REDIS_PORT}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
@@ -39,11 +44,16 @@ services:
       - redis
       - kafka
       - keycloak
+    expose:
+      - "8080"
     networks:
       - spring-lab-net
 
   bff:
-    image: ${BFF_IMAGE}
+    image: spring-lab-bff:local
+    build:
+      context: ../bff
+      dockerfile: Dockerfile
     container_name: spring-lab-bff
     restart: unless-stopped
     environment:
@@ -53,13 +63,22 @@ services:
 
       APP_BACKEND_URL: http://backend:8080
 
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: ${BFF_CLIENT_ID}
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_AUTHORIZATION_GRANT_TYPE: authorization_code
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI: https://spring-backend-lab.ru/login/oauth2/code/keycloak
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
+
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_AUTHORIZATION_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab/protocol/openid-connect/auth
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/token
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/certs
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/userinfo
+
     depends_on:
       - backend
       - keycloak
+    expose:
+      - "8082"
     networks:
       - spring-lab-net
 
@@ -73,6 +92,8 @@ services:
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql
+    expose:
+      - "5432"
     networks:
       - spring-lab-net
 
@@ -80,6 +101,9 @@ services:
     image: redis:7
     container_name: spring-lab-redis
     restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${SPRING_REDIS_PASSWORD}"]
+    expose:
+      - "6379"
     networks:
       - spring-lab-net
 
@@ -105,6 +129,8 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     volumes:
       - kafka_data:/var/lib/kafka/data
+    expose:
+      - "9092"
     networks:
       - spring-lab-net
 
@@ -124,11 +150,14 @@ services:
 
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: 8080
+
       KC_HOSTNAME: auth.spring-backend-lab.ru
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "true"
     depends_on:
       - keycloak-db
+    expose:
+      - "8080"
     networks:
       - spring-lab-net
 
@@ -153,3 +182,4 @@ volumes:
 networks:
   spring-lab-net:
     name: spring-lab-net
+    driver: bridge
