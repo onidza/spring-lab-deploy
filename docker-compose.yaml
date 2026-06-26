@@ -25,20 +25,8 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SERVER_PORT: 8080
-
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
-
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/certs
     depends_on:
       - postgres
       - redis
@@ -58,22 +46,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SERVER_PORT: 8082
-      SERVER_FORWARD_HEADERS_STRATEGY: framework
-
-      APP_BACKEND_URL: http://backend:8080
-
-      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: ${BFF_CLIENT_ID}
-      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
-      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_AUTHORIZATION_GRANT_TYPE: authorization_code
-      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI: https://spring-backend-lab.ru/login/oauth2/code/keycloak
-      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
-
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_AUTHORIZATION_URI: https://auth.spring-backend-lab.ru/realms/spring-backend-lab/protocol/openid-connect/auth
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/token
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/certs
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/spring-backend-lab/protocol/openid-connect/userinfo
-
+      BFF_CLIENT_SECRET: ${BFF_CLIENT_SECRET}
     depends_on:
       - backend
       - keycloak
@@ -87,7 +60,7 @@ services:
     container_name: spring-lab-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: spring_backend_lab
       POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     volumes:
@@ -101,7 +74,6 @@ services:
     image: redis:7
     container_name: spring-lab-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${SPRING_REDIS_PASSWORD}"]
     expose:
       - "6379"
     networks:
@@ -151,7 +123,7 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: 8080
 
-      KC_HOSTNAME: auth.spring-backend-lab.ru
+      KC_HOSTNAME: https://auth.spring-backend-lab.ru
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "true"
     depends_on:
