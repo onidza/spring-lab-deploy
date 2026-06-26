@@ -110,7 +110,7 @@ services:
     image: quay.io/keycloak/keycloak:26.6.3
     container_name: keycloak
     restart: unless-stopped
-    command: start
+    command: start --import-realm #todo
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
@@ -132,6 +132,8 @@ services:
       - "8080"
     networks:
       - spring-lab-net
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro #todo
 
   keycloak-db:
     image: postgres:18
@@ -150,6 +152,7 @@ volumes:
   postgres_data:
   kafka_data:
   keycloak_db_data:
+  keycloak:
 
 networks:
   spring-lab-net:
