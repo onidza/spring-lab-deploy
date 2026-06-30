@@ -1,0 +1,21 @@
+stages:
+  - deploy
+
+deploy_prod:
+  stage: deploy
+  image: alpine:latest
+
+  only:
+    - main
+
+  before_script:
+    - apk add --no-cache openssh-client coreutils
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_PRIVATE_KEY_B64" | base64 -d > ~/.ssh/gitlab_ci_vps
+    - chmod 600 ~/.ssh/gitlab_ci_vps
+    - ssh-keyscan "$VPS_HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
+  script:
+    - ssh -i ~/.ssh/gitlab_ci_vps "$VPS_USER@$VPS_HOST" "cd /opt/spring-lab/spring-lab-deploy && git fetch origin main && git reset --hard origin/main && chmod +x deploy.sh && ./deploy.sh"
