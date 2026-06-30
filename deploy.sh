@@ -12,6 +12,7 @@ git fetch origin main
 git reset --hard origin/main
 
 echo "Rebuilding containers..."
+cd /opt/spring-lab/spring-lab-deploy
 docker compose -f docker-compose.prod.yml up -d --build
 
 echo "Pruning old images..."
