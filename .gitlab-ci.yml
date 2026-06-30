@@ -4,6 +4,8 @@ stages:
 deploy_prod:
   stage: deploy
   image: alpine:latest
+  tags:
+    - siam-vps
 
   only:
     - main
