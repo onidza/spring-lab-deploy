@@ -8,8 +8,8 @@ git reset --hard origin/master
 
 echo "Updating bff..."
 cd /opt/spring-lab/bff
-git fetch origin master
-git reset --hard origin/master
+git fetch origin main
+git reset --hard origin/main
 
 echo "Rebuilding containers..."
 docker compose -f docker-compose.prod.yml up -d --build
